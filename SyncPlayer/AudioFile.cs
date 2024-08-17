@@ -24,6 +24,13 @@ namespace SyncPlayer
             _waveOut = new WaveOut();
             _waveOut.Init(_audioFileReader);
             _waveOut.PlaybackStopped += WaveOut_PlaybackStopped;
+
+            _timer = new Timer(100);
+            _timer.Elapsed += Timer_Elapsed;
+        }
+
+        public void PlayAt(int seconds)
+        {
         }
 
         public void Close()
@@ -34,6 +41,11 @@ namespace SyncPlayer
         private void WaveOut_PlaybackStopped(object sender, StoppedEventArgs e)
         {
             _waveOut.Stop();
+            _timer.Stop();
+        }
+
+        private void Timer_Elapsed(object sender, ElapsedEventArgs e)
+        {
         }
     }
 }
