@@ -28,35 +28,38 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.AudioPanel = new System.Windows.Forms.Panel();
             this.ArrowPanel = new System.Windows.Forms.Panel();
             this.AlignToBeginButton = new System.Windows.Forms.Button();
             this.AlignToEndButton = new System.Windows.Forms.Button();
-            this.TotalScrollBar = new System.Windows.Forms.HScrollBar();
+            this.TotalScrollBar = new SyncPlayer.MyScrollBar();
+            this.PlayBackTimer = new System.Windows.Forms.Timer(this.components);
             this.SuspendLayout();
             // 
             // AudioPanel
             // 
             this.AudioPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.AudioPanel.Location = new System.Drawing.Point(9, 10);
+            this.AudioPanel.Location = new System.Drawing.Point(12, 12);
             this.AudioPanel.Margin = new System.Windows.Forms.Padding(0);
             this.AudioPanel.Name = "AudioPanel";
-            this.AudioPanel.Size = new System.Drawing.Size(561, 102);
+            this.AudioPanel.Size = new System.Drawing.Size(747, 125);
             this.AudioPanel.TabIndex = 1;
             // 
             // ArrowPanel
             // 
-            this.ArrowPanel.Location = new System.Drawing.Point(9, 112);
+            this.ArrowPanel.Location = new System.Drawing.Point(12, 138);
             this.ArrowPanel.Margin = new System.Windows.Forms.Padding(0);
             this.ArrowPanel.Name = "ArrowPanel";
-            this.ArrowPanel.Size = new System.Drawing.Size(15, 16);
+            this.ArrowPanel.Size = new System.Drawing.Size(20, 20);
             this.ArrowPanel.TabIndex = 5;
             // 
             // AlignToBeginButton
             // 
-            this.AlignToBeginButton.Location = new System.Drawing.Point(514, 167);
+            this.AlignToBeginButton.Location = new System.Drawing.Point(685, 206);
+            this.AlignToBeginButton.Margin = new System.Windows.Forms.Padding(4);
             this.AlignToBeginButton.Name = "AlignToBeginButton";
-            this.AlignToBeginButton.Size = new System.Drawing.Size(25, 25);
+            this.AlignToBeginButton.Size = new System.Drawing.Size(33, 31);
             this.AlignToBeginButton.TabIndex = 10;
             this.AlignToBeginButton.Text = "|<";
             this.AlignToBeginButton.UseVisualStyleBackColor = true;
@@ -64,9 +67,10 @@
             // 
             // AlignToEndButton
             // 
-            this.AlignToEndButton.Location = new System.Drawing.Point(545, 167);
+            this.AlignToEndButton.Location = new System.Drawing.Point(727, 206);
+            this.AlignToEndButton.Margin = new System.Windows.Forms.Padding(4);
             this.AlignToEndButton.Name = "AlignToEndButton";
-            this.AlignToEndButton.Size = new System.Drawing.Size(25, 25);
+            this.AlignToEndButton.Size = new System.Drawing.Size(33, 31);
             this.AlignToEndButton.TabIndex = 11;
             this.AlignToEndButton.Text = ">|";
             this.AlignToEndButton.UseVisualStyleBackColor = true;
@@ -74,28 +78,33 @@
             // 
             // TotalScrollBar
             // 
-            this.TotalScrollBar.Location = new System.Drawing.Point(9, 140);
+            this.TotalScrollBar.Location = new System.Drawing.Point(12, 172);
             this.TotalScrollBar.Name = "TotalScrollBar";
-            this.TotalScrollBar.Size = new System.Drawing.Size(561, 17);
-            this.TotalScrollBar.TabIndex = 12;
+            this.TotalScrollBar.Size = new System.Drawing.Size(748, 17);
+            this.TotalScrollBar.TabIndex = 13;
+            // 
+            // PlayBackTimer
+            // 
+            this.PlayBackTimer.Tick += new System.EventHandler(this.PlayBackTimer_Tick);
             // 
             // MainForm
             // 
             this.AllowDrop = true;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(578, 207);
+            this.ClientSize = new System.Drawing.Size(771, 255);
             this.Controls.Add(this.TotalScrollBar);
             this.Controls.Add(this.AlignToEndButton);
             this.Controls.Add(this.AlignToBeginButton);
             this.Controls.Add(this.ArrowPanel);
             this.Controls.Add(this.AudioPanel);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            this.Margin = new System.Windows.Forms.Padding(2);
+            this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "MainForm";
             this.Text = "MainForm";
+            this.Shown += new System.EventHandler(this.MainForm_Shown);
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
             this.DragEnter += new System.Windows.Forms.DragEventHandler(this.MainForm_DragEnter);
             this.Resize += new System.EventHandler(this.MainForm_Resize);
@@ -108,6 +117,7 @@
         private System.Windows.Forms.Panel ArrowPanel;
         private System.Windows.Forms.Button AlignToBeginButton;
         private System.Windows.Forms.Button AlignToEndButton;
-        private System.Windows.Forms.HScrollBar TotalScrollBar;
+        private MyScrollBar TotalScrollBar;
+        private System.Windows.Forms.Timer PlayBackTimer;
     }
 }

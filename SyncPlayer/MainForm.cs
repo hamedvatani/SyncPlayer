@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Windows.Forms;
 using NAudio.Wave;
 
@@ -11,182 +9,157 @@ namespace SyncPlayer
 {
     public partial class MainForm : Form
     {
-        public class AudioFile
-        {
-            public string FilePath { get; set; }
-            public string Filename => Path.GetFileName(FilePath);
-            public AudioFileReader AudioFileReader { get; set; }
-            public TimeSpan SilenceBefore { get; set; }
-            public TimeSpan SilenceAfter { get; set; }
-            public HScrollBar HScrollBar { get; set; }
-        }
-
         private readonly List<Label> _labels = new List<Label>();
-        private readonly List<HScrollBar> _hScrollBars = new List<HScrollBar>();
+        private readonly List<MyScrollBar> _scrollBars = new List<MyScrollBar>();
         private readonly List<AudioFile> _audioFiles = new List<AudioFile>();
+
+        private const int AudioHeight = 50;
+        private const int CurveHeight = 30;
 
         public MainForm()
         {
             InitializeComponent();
         }
 
-        private void ShowGraphics(bool init = true)
+        private void SetLayout()
         {
-            var audioHeight = 50;
-            var curveHeight = 30;
+            if (_audioFiles.Count == 0)
+                return;
 
-            var g = AudioPanel.CreateGraphics();
+            AudioPanel.Height = _audioFiles.Count * AudioHeight;
 
-            if (init)
+            ArrowPanel.Top = AudioPanel.Top + AudioPanel.Height;
+            ArrowPanel.Left = AudioPanel.Left - 7;
+
+            TotalScrollBar.Top = Top = ArrowPanel.Top + ArrowPanel.Height + 5;
+            TotalScrollBar.Left = AudioPanel.Left;
+            TotalScrollBar.Width = AudioPanel.Width;
+            TotalScrollBar.Value = 0;
+            TotalScrollBar.Maximum = _audioFiles.Max(x => x.TotalTime + x.SilenceBefore + x.SilenceAfter);
+
+            AlignToEndButton.Top = TotalScrollBar.Top + TotalScrollBar.Height + 5;
+            AlignToEndButton.Left = AudioPanel.Left + AudioPanel.Width - AlignToEndButton.Width;
+            AlignToBeginButton.Top = AlignToEndButton.Top;
+            AlignToBeginButton.Left = AlignToEndButton.Left - 30;
+
+            foreach (var label in _labels)
+                Controls.Remove(label);
+            _labels.Clear();
+
+            foreach (var scrollBar in _scrollBars)
             {
-                AudioPanel.Height = _audioFiles.Count * audioHeight;
-                ArrowPanel.Top = AudioPanel.Top + AudioPanel.Height;
-                ArrowPanel.Left = AudioPanel.Left - 7;
-
-                TotalScrollBar.Top = Top = ArrowPanel.Top + ArrowPanel.Height + 5;
-                TotalScrollBar.Left = AudioPanel.Left;
-                TotalScrollBar.Width = AudioPanel.Width;
-                TotalScrollBar.Value = 0;
-                TotalScrollBar.Maximum = (int)_audioFiles
-                    .Max(x => x.AudioFileReader.TotalTime + x.SilenceBefore + x.SilenceAfter)
-                    .TotalSeconds;
-
-                AlignToEndButton.Top = TotalScrollBar.Top + TotalScrollBar.Height + 5;
-                AlignToEndButton.Left = AudioPanel.Left + AudioPanel.Width - AlignToEndButton.Width;
-                AlignToBeginButton.Top = AlignToEndButton.Top;
-                AlignToBeginButton.Left = AlignToEndButton.Left - 30;
-
-                foreach (var label in _labels)
-                    Controls.Remove(label);
-                _labels.Clear();
-
-                foreach (var hScrollBar in _hScrollBars)
-                {
-                    hScrollBar.Scroll -= HScrollBar_Scroll;
-                    Controls.Remove(hScrollBar);
-                }
-
-                _hScrollBars.Clear();
-
-                var maxLabelSize = new Size(0, 0);
-                foreach (var audioFile in _audioFiles)
-                {
-                    var size = g.MeasureString(audioFile.Filename + " :", Font);
-                    if (maxLabelSize.Width < size.Width)
-                        maxLabelSize.Width = (int)size.Width;
-                    if (maxLabelSize.Height < size.Height)
-                        maxLabelSize.Height = (int)size.Height;
-                }
-
-                for (int i = 0; i < _audioFiles.Count; i++)
-                {
-                    var text = _audioFiles[i].Filename + " :";
-                    var size = g.MeasureString(text, Font);
-                    var label = new Label
-                    {
-                        Top = TotalScrollBar.Top + TotalScrollBar.Height + 5 + i * (maxLabelSize.Height + 10),
-                        Left = AudioPanel.Left + maxLabelSize.Width - (int)size.Width,
-                        Width = (int)size.Width + 10,
-                        Height = (int)size.Height,
-                        Text = text,
-                        TextAlign = ContentAlignment.MiddleRight
-                    };
-                    Controls.Add(label);
-                    _labels.Add(label);
-
-                    var hScrollBar = new HScrollBar
-                    {
-                        Top = label.Top,
-                        Left = label.Left + label.Width + 10,
-                        Width = 150,
-                        Height = 17,
-                        Value = 0,
-                        Maximum = (int)(_audioFiles[i].SilenceBefore += _audioFiles[i].SilenceAfter).TotalSeconds,
-                        Tag = _audioFiles[i]
-                    };
-
-                    hScrollBar.Value = (int)_audioFiles[i].SilenceBefore.TotalSeconds;
-                    hScrollBar.Scroll += HScrollBar_Scroll;
-                    _audioFiles[i].HScrollBar = hScrollBar;
-                    Controls.Add(hScrollBar);
-                    _hScrollBars.Add(hScrollBar);
-                }
-
-                Height = TotalScrollBar.Top
-                         + TotalScrollBar.Height
-                         + 5
-                         + _audioFiles.Count * (maxLabelSize.Height + 10)
-                         + 17
-                         + 30;
+                scrollBar.Scroll -= ScrollBar_Scroll;
+                Controls.Remove(scrollBar);
             }
 
-            g.Clear(Color.White);
-            var maxLength = TimeSpan.Zero;
-            for (int i = 0; i < _audioFiles.Count; i++)
+            _scrollBars.Clear();
+
+            var maxLabelSize = new Size(0, 0);
+            var g = CreateGraphics();
+            foreach (var audioFile in _audioFiles)
             {
-                var l = _audioFiles[i].AudioFileReader.TotalTime +
-                        _audioFiles[i].SilenceBefore +
-                        _audioFiles[i].SilenceAfter;
-                if (l > maxLength)
-                    maxLength = l;
+                var size = g.MeasureString(audioFile.Filename + " :", Font);
+                if (maxLabelSize.Width < size.Width)
+                    maxLabelSize.Width = (int)size.Width;
+                if (maxLabelSize.Height < size.Height)
+                    maxLabelSize.Height = (int)size.Height;
             }
 
             for (int i = 0; i < _audioFiles.Count; i++)
             {
-                var offsetY = audioHeight * i + audioHeight / 2;
-                var x1 = _audioFiles[i].SilenceBefore.TotalSeconds * AudioPanel.Width / maxLength.TotalSeconds;
-                g.DrawLine(new Pen(Color.Black),
-                    0, offsetY,
-                    (int)x1, offsetY);
-                var x2 = x1 + _audioFiles[i].AudioFileReader.TotalTime.TotalSeconds *
-                    AudioPanel.Width /
-                    maxLength.TotalSeconds;
-                g.FillRectangle(new SolidBrush(Color.Blue),
-                    (int)x1, offsetY - curveHeight / 2,
-                    (int)x2 - (int)x1, curveHeight);
-                g.DrawLine(new Pen(Color.Black),
-                    (int)x2, offsetY,
-                    AudioPanel.Width, offsetY);
+                var text = _audioFiles[i].Filename + " :";
+                var size = g.MeasureString(text, Font);
+                var label = new Label
+                {
+                    Top = TotalScrollBar.Top + TotalScrollBar.Height + 5 + i * (maxLabelSize.Height + 10),
+                    Left = AudioPanel.Left + maxLabelSize.Width - (int)size.Width,
+                    Width = (int)size.Width + 10,
+                    Height = (int)size.Height,
+                    Text = text,
+                    TextAlign = ContentAlignment.MiddleRight
+                };
+                Controls.Add(label);
+                _labels.Add(label);
+
+                var scrollBar = new MyScrollBar
+                {
+                    Top = label.Top,
+                    Left = label.Left + label.Width + 10,
+                    Width = 150,
+                    Height = 17,
+                    Value = 0,
+                    Maximum = _audioFiles[i].SilenceBefore + _audioFiles[i].SilenceAfter,
+                    Tag = _audioFiles[i]
+                };
+
+                scrollBar.Value = _audioFiles[i].SilenceBefore;
+                scrollBar.Scroll += ScrollBar_Scroll;
+                _audioFiles[i].ScrollBar = scrollBar;
+                Controls.Add(scrollBar);
+                _scrollBars.Add(scrollBar);
             }
 
-            g = ArrowPanel.CreateGraphics();
-            g.FillPolygon(new SolidBrush(Color.Red),
-                new[]
-                {
-                    new Point(8, 0),
-                    new Point(0, 13),
-                    new Point(15, 13),
-                });
+            Height = TotalScrollBar.Top
+                     + TotalScrollBar.Height
+                     + 5
+                     + _audioFiles.Count * (maxLabelSize.Height + 10)
+                     + 17
+                     + 30;
         }
 
-        private void HScrollBar_Scroll(object sender, ScrollEventArgs e)
+        private void DrawWaveForms()
         {
-            if (sender is HScrollBar hScrollBar && hScrollBar.Tag is AudioFile audioFile)
+            if (_audioFiles.Count == 0)
+                return;
+
+            var g = AudioPanel.CreateGraphics();
+            g.Clear(Color.White);
+            var maxLength = _audioFiles.Max(x => x.SilenceBefore + x.TotalTime + x.SilenceAfter);
+
+            for (int i = 0; i < _audioFiles.Count; i++)
             {
-                var sb = TimeSpan.FromSeconds(hScrollBar.Value);
-                var sa = audioFile.SilenceBefore + audioFile.SilenceAfter - sb;
-                audioFile.SilenceBefore = sb;
-                audioFile.SilenceAfter = sa;
-                ShowGraphics(false);
+                var offsetY = AudioHeight * i + AudioHeight / 2;
+                var x1 = _audioFiles[i].SilenceBefore * AudioPanel.Width / maxLength;
+                g.DrawLine(new Pen(Color.Black),
+                    0, offsetY,
+                    x1, offsetY);
+                var x2 = x1 + _audioFiles[i].TotalTime * AudioPanel.Width / maxLength;
+                g.FillRectangle(new SolidBrush(Color.Blue),
+                    x1, offsetY - CurveHeight / 2,
+                    x2 - x1, CurveHeight);
+                g.DrawLine(new Pen(Color.Black),
+                    x2, offsetY,
+                    AudioPanel.Width, offsetY);
+            }
+        }
+
+        private void ScrollBar_Scroll(object sender, ScrollEventArgs e)
+        {
+            if (sender is MyScrollBar scrollBar && scrollBar.Tag is AudioFile audioFile)
+            {
+                audioFile.SilenceBefore = scrollBar.Value;
+                audioFile.SilenceAfter = scrollBar.Maximum - scrollBar.Value;
+                DrawWaveForms();
             }
         }
 
         private void AddFiles(string[] filenames)
         {
             foreach (var audioFile in _audioFiles)
-                audioFile.AudioFileReader.Close();
+                audioFile.Close();
             _audioFiles.Clear();
             foreach (var filename in filenames)
-                _audioFiles.Add(new AudioFile
+                _audioFiles.Add(new AudioFile(new AudioFileReader(filename))
                 {
                     FilePath = filename,
-                    AudioFileReader = new AudioFileReader(filename),
-                    SilenceAfter = TimeSpan.Zero
+                    SilenceAfter = 0
                 });
-            var maxLength = _audioFiles.Max(x => x.AudioFileReader.TotalTime);
+
+            var maxLength = _audioFiles.Max(x => x.TotalTime);
             foreach (var audioFile in _audioFiles)
-                audioFile.SilenceBefore = maxLength - audioFile.AudioFileReader.TotalTime;
-            ShowGraphics();
+                audioFile.SilenceBefore = maxLength - audioFile.TotalTime;
+            SetLayout();
+            DrawWaveForms();
         }
 
         private void MainForm_DragEnter(object sender, DragEventArgs e)
@@ -203,35 +176,50 @@ namespace SyncPlayer
 
         private void MainForm_Resize(object sender, EventArgs e)
         {
-            ShowGraphics(false);
+            DrawWaveForms();
         }
 
         private void AlignToBeginButton_Click(object sender, EventArgs e)
         {
             foreach (var audioFile in _audioFiles)
             {
-                var sb = TimeSpan.Zero;
-                var sa = audioFile.SilenceBefore + audioFile.SilenceAfter - sb;
-                audioFile.SilenceBefore = sb;
-                audioFile.SilenceAfter = sa;
-                audioFile.HScrollBar.Value = (int)audioFile.SilenceBefore.TotalSeconds;
+                var sum = audioFile.SilenceBefore + audioFile.SilenceAfter;
+                audioFile.SilenceBefore = 0;
+                audioFile.SilenceAfter = sum;
+                audioFile.ScrollBar.Value = 0;
             }
 
-            ShowGraphics(false);
+            DrawWaveForms();
         }
 
         private void AlignToEndButton_Click(object sender, EventArgs e)
         {
             foreach (var audioFile in _audioFiles)
             {
-                var sa = TimeSpan.Zero;
-                var sb = audioFile.SilenceBefore + audioFile.SilenceAfter - sa;
-                audioFile.SilenceBefore = sb;
-                audioFile.SilenceAfter = sa;
-                audioFile.HScrollBar.Value = (int)audioFile.SilenceBefore.TotalSeconds;
+                var sum = audioFile.SilenceBefore + audioFile.SilenceAfter;
+                audioFile.SilenceBefore = sum;
+                audioFile.SilenceAfter = 0;
+                audioFile.ScrollBar.Value = sum;
             }
 
-            ShowGraphics(false);
+            DrawWaveForms();
+        }
+
+        private void MainForm_Shown(object sender, EventArgs e)
+        {
+            var g = ArrowPanel.CreateGraphics();
+            g.FillPolygon(new SolidBrush(Color.Red),
+                new[]
+                {
+                    new Point(8, 0),
+                    new Point(0, 13),
+                    new Point(15, 13),
+                });
+        }
+
+        private void PlayBackTimer_Tick(object sender, EventArgs e)
+        {
+
         }
     }
 }
