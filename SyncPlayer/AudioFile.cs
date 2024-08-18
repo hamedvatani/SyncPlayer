@@ -1,6 +1,5 @@
 ﻿using NAudio.Wave;
 using System.IO;
-using System.Timers;
 
 namespace SyncPlayer
 {
@@ -12,10 +11,10 @@ namespace SyncPlayer
         public int SilenceBefore { get; set; }
         public int SilenceAfter { get; set; }
         public MyScrollBar ScrollBar { get; set; }
+        public bool PlayFlag { get; set; }
 
         private readonly AudioFileReader _audioFileReader;
-        private WaveOut _waveOut;
-        private Timer _timer;
+        private readonly WaveOut _waveOut;
 
         public AudioFile(AudioFileReader audioFileReader)
         {
@@ -24,13 +23,6 @@ namespace SyncPlayer
             _waveOut = new WaveOut();
             _waveOut.Init(_audioFileReader);
             _waveOut.PlaybackStopped += WaveOut_PlaybackStopped;
-
-            _timer = new Timer(100);
-            _timer.Elapsed += Timer_Elapsed;
-        }
-
-        public void PlayAt(int seconds)
-        {
         }
 
         public void Close()
@@ -38,14 +30,21 @@ namespace SyncPlayer
             _audioFileReader.Close();
         }
 
+        public void Play()
+        {
+            if (_waveOut.PlaybackState != PlaybackState.Playing)
+                _waveOut.Play();
+        }
+
+        public void Stop()
+        {
+            if (_waveOut.PlaybackState == PlaybackState.Playing)
+                _waveOut.Stop();
+        }
+
         private void WaveOut_PlaybackStopped(object sender, StoppedEventArgs e)
         {
             _waveOut.Stop();
-            _timer.Stop();
-        }
-
-        private void Timer_Elapsed(object sender, ElapsedEventArgs e)
-        {
         }
     }
 }

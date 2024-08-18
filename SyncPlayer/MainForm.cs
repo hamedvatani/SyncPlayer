@@ -12,6 +12,10 @@ namespace SyncPlayer
         private readonly List<Label> _labels = new List<Label>();
         private readonly List<MyScrollBar> _scrollBars = new List<MyScrollBar>();
         private readonly List<AudioFile> _audioFiles = new List<AudioFile>();
+        private int _startAt;
+        private DateTime _startTime;
+        private int _maxLength;
+        private bool _scrollChanging;
 
         private const int AudioHeight = 50;
         private const int CurveHeight = 30;
@@ -105,6 +109,15 @@ namespace SyncPlayer
                      + _audioFiles.Count * (maxLabelSize.Height + 10)
                      + 17
                      + 30;
+
+            g = ArrowPanel.CreateGraphics();
+            g.FillPolygon(new SolidBrush(Color.Red),
+                new[]
+                {
+                    new Point(8, 0),
+                    new Point(0, 13),
+                    new Point(15, 13),
+                });
         }
 
         private void DrawWaveForms()
@@ -115,6 +128,7 @@ namespace SyncPlayer
             var g = AudioPanel.CreateGraphics();
             g.Clear(Color.White);
             var maxLength = _audioFiles.Max(x => x.SilenceBefore + x.TotalTime + x.SilenceAfter);
+            _maxLength = maxLength;
 
             for (int i = 0; i < _audioFiles.Count; i++)
             {
@@ -160,6 +174,9 @@ namespace SyncPlayer
                 audioFile.SilenceBefore = maxLength - audioFile.TotalTime;
             SetLayout();
             DrawWaveForms();
+            _startTime = DateTime.Now;
+            _startAt = 0;
+            PlayBackTimer.Start();
         }
 
         private void MainForm_DragEnter(object sender, DragEventArgs e)
@@ -205,21 +222,68 @@ namespace SyncPlayer
             DrawWaveForms();
         }
 
-        private void MainForm_Shown(object sender, EventArgs e)
-        {
-            var g = ArrowPanel.CreateGraphics();
-            g.FillPolygon(new SolidBrush(Color.Red),
-                new[]
-                {
-                    new Point(8, 0),
-                    new Point(0, 13),
-                    new Point(15, 13),
-                });
-        }
-
         private void PlayBackTimer_Tick(object sender, EventArgs e)
         {
+            var elapsed = (int)(DateTime.Now - _startTime).TotalSeconds;
+            elapsed += _startAt;
+            var x = elapsed * AudioPanel.Width / _maxLength;
 
+            if (!_scrollChanging)
+            {
+                ArrowPanel.Left = AudioPanel.Left + x - 7;
+                TotalScrollBar.Value = elapsed;
+            }
+
+            foreach (var audioFile in _audioFiles)
+            {
+                if (_startAt + elapsed < audioFile.SilenceBefore)
+                {
+                    audioFile.Stop();
+                    audioFile.PlayFlag = false;
+                }
+                else if (_startAt + elapsed < audioFile.SilenceBefore + audioFile.TotalTime)
+                {
+                    if (!audioFile.PlayFlag)
+                    {
+                        audioFile.PlayFlag = true;
+                        audioFile.Play();
+                    }
+                }
+                else
+                {
+                    audioFile.Stop();
+                    audioFile.PlayFlag = false;
+                }
+            }
+        }
+
+        private void TotalScrollBar_MouseCaptureChanged(object sender, EventArgs e)
+        {
+            _scrollChanging = true;
+        }
+
+        private void TotalScrollBar_ValueChanged(object sender, EventArgs e)
+        {
+        }
+
+        private void TotalScrollBar_Scroll(object sender, ScrollEventArgs e)
+        {
+            if (e.Type == ScrollEventType.EndScroll)
+            {
+                _scrollChanging = false;
+                foreach (var audioFile in _audioFiles)
+                {
+                    audioFile.Stop();
+                    audioFile.PlayFlag = false;
+                }
+
+                _startTime = DateTime.Now;
+                _startAt = TotalScrollBar.Value;
+            }
+
+            var elapsed = TotalScrollBar.Value;
+            var x = elapsed * AudioPanel.Width / _maxLength;
+            ArrowPanel.Left = AudioPanel.Left + x - 7;
         }
     }
 }
