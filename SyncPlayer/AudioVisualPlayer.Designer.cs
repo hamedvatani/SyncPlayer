@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.WaveFormPanel = new System.Windows.Forms.Panel();
             this.SilenceBeforeLabel = new System.Windows.Forms.Label();
             this.AudioLabel = new System.Windows.Forms.Label();
@@ -37,6 +38,7 @@
             this.CurrentAudioLabel = new System.Windows.Forms.Label();
             this.CurrentSilenceBeforeLabel = new System.Windows.Forms.Label();
             this.FileNameLabel = new System.Windows.Forms.Label();
+            this.JobTimer = new System.Windows.Forms.Timer(this.components);
             this.SuspendLayout();
             // 
             // WaveFormPanel
@@ -83,6 +85,7 @@
             this.TotalScrollBar.Name = "TotalScrollBar";
             this.TotalScrollBar.Size = new System.Drawing.Size(177, 17);
             this.TotalScrollBar.TabIndex = 5;
+            this.TotalScrollBar.Scroll += new System.Windows.Forms.ScrollEventHandler(this.TotalScrollBar_Scroll);
             // 
             // CurrentSilenceAfterLabel
             // 
@@ -123,6 +126,11 @@
             this.FileNameLabel.TabIndex = 9;
             this.FileNameLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // JobTimer
+            // 
+            this.JobTimer.Enabled = true;
+            this.JobTimer.Tick += new System.EventHandler(this.JobTimer_Tick);
+            // 
             // AudioVisualPlayer
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -156,5 +164,6 @@
         private System.Windows.Forms.Label CurrentAudioLabel;
         private System.Windows.Forms.Label CurrentSilenceBeforeLabel;
         private System.Windows.Forms.Label FileNameLabel;
+        private System.Windows.Forms.Timer JobTimer;
     }
 }

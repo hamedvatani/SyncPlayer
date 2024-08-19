@@ -37,6 +37,20 @@ namespace SyncPlayer
             }
         }
 
+        [Category("WaveFormPanel")]
+        public int WaveFormMargin
+        {
+            get => _waveFormMargin;
+            set
+            {
+                if (_waveFormMargin != value)
+                {
+                    _waveFormMargin = value;
+                    WaveFormPanel_Paint(null, null);
+                }
+            }
+        }
+
         [Category("Audio")]
         public string Filename
         {
@@ -45,8 +59,14 @@ namespace SyncPlayer
             {
                 _filename = value;
                 if (File.Exists(_filename))
+                {
                     _audioFileReader = new AudioFileReader(_filename);
+                    _waveOut.Init(_audioFileReader);
+                }
+
                 AudioFileChanged();
+                ScrollChanged();
+                WaveFormPanel_Paint(null, null);
             }
         }
 
@@ -56,8 +76,13 @@ namespace SyncPlayer
             get => _silenceBefore;
             set
             {
-                _silenceBefore = value;
-                AudioFileChanged();
+                if (_silenceBefore != value)
+                {
+                    _silenceBefore = value;
+                    AudioFileChanged();
+                    ScrollChanged();
+                    WaveFormPanel_Paint(null, null);
+                }
             }
         }
 
@@ -67,23 +92,56 @@ namespace SyncPlayer
             get => _silenceAfter;
             set
             {
-                _silenceAfter = value;
-                AudioFileChanged();
+                if (_silenceAfter != value)
+                {
+                    _silenceAfter = value;
+                    AudioFileChanged();
+                    ScrollChanged();
+                    WaveFormPanel_Paint(null, null);
+                }
             }
         }
 
-        private int AudioTime => (int)(_audioFileReader?.TotalTime.TotalSeconds ?? 0);
+        public int AudioTime => (int)(_audioFileReader?.TotalTime.TotalSeconds ?? 0);
+        public int CurrentAudioTime => (int)(_audioFileReader?.CurrentTime.TotalSeconds ?? 0);
+        public bool IsPlaying => _isPlaying;
 
         private bool _showTopLine;
         private bool _showBottomLine;
+        private int _waveFormMargin;
         private string _filename;
         private int _silenceBefore;
         private int _silenceAfter;
         private AudioFileReader _audioFileReader;
-
+        private int _currentTime;
+        private int _startAt;
+        private DateTime _startTime;
+        private bool _isPlaying;
+        private readonly WaveOut _waveOut = new WaveOut();
         public AudioVisualPlayer()
         {
             InitializeComponent();
+        }
+
+        public void PlayAt(int seconds)
+        {
+            if (_audioFileReader == null)
+                return;
+
+            _startAt = seconds;
+            _startTime = DateTime.Now;
+            if (seconds > _silenceBefore && seconds < _silenceBefore + AudioTime)
+                _audioFileReader.CurrentTime = TimeSpan.FromSeconds(seconds - _silenceBefore);
+            else
+                _audioFileReader.CurrentTime = TimeSpan.Zero;
+            _isPlaying = true;
+        }
+
+        public void Stop()
+        {
+            _isPlaying = false;
+            if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
+                _waveOut.Stop();
         }
 
         private void AudioVisualPlayer_Load(object sender, EventArgs e)
@@ -143,26 +201,47 @@ namespace SyncPlayer
         {
             var g = WaveFormPanel.CreateGraphics();
             g.Clear(Color.White);
-            g.DrawLine(new Pen(Color.Black)
-                , 0, 0,
+            g.DrawLine(new Pen(Color.Black),
+                0, 0,
                 0, WaveFormPanel.Height);
-            g.DrawLine(new Pen(Color.Black)
-                , WaveFormPanel.Width - 1, 0,
+            g.DrawLine(new Pen(Color.Black),
+                WaveFormPanel.Width - 1, 0,
                 WaveFormPanel.Width - 1, WaveFormPanel.Height);
             if (_showTopLine)
-                g.DrawLine(new Pen(Color.Black)
-                    , 0, 0,
+                g.DrawLine(new Pen(Color.Black),
+                    0, 0,
                     WaveFormPanel.Width, 0);
             if (_showBottomLine)
-                g.DrawLine(new Pen(Color.Black
-                    ), 0, WaveFormPanel.Height - 1,
+                g.DrawLine(new Pen(Color.Black),
+                    0, WaveFormPanel.Height - 1,
                     WaveFormPanel.Width - 1, WaveFormPanel.Height - 1);
 
+            var totalTime = _silenceBefore + AudioTime + _silenceAfter;
             if (_silenceBefore < 0 ||
                 AudioTime <= 0 ||
                 _silenceAfter < 0 ||
-                _silenceBefore + AudioTime + _silenceAfter <= 0)
+                totalTime <= 0)
                 return;
+
+            double ratio = WaveFormPanel.Width;
+            ratio /= totalTime;
+            var x1 = (int)(_silenceBefore * ratio);
+            var x2 = (int)((_silenceBefore + AudioTime) * ratio);
+
+            g.DrawLine(new Pen(Color.Black),
+                0, Height / 2,
+                x1, Height / 2);
+            g.FillRectangle(new SolidBrush(Color.DodgerBlue),
+                x1, _waveFormMargin,
+                x2 - x1, Height - 2 * _waveFormMargin);
+            g.DrawLine(new Pen(Color.Black),
+                x2, Height / 2,
+                WaveFormPanel.Width, Height / 2);
+
+            var x = (int)(_currentTime * ratio);
+            g.FillRectangle(new SolidBrush(Color.OrangeRed),
+                x, 0,
+                2, Height);
         }
 
         private void AudioFileChanged()
@@ -176,9 +255,83 @@ namespace SyncPlayer
             SilenceAfterLabel.Text = ToStr(TimeSpan.FromSeconds(_silenceAfter));
         }
 
+        private void ScrollChanged()
+        {
+            TotalScrollBar.Value = 0;
+            TotalScrollBar.Maximum = _silenceBefore + _silenceAfter;
+            TotalScrollBar.Value = _silenceBefore;
+        }
+
         private string ToStr(TimeSpan ts)
         {
             return $"{(int)ts.TotalMinutes}:{ts:ss}";
+        }
+
+        private void TotalScrollBar_Scroll(object sender, ScrollEventArgs e)
+        {
+            _silenceBefore = TotalScrollBar.Value;
+            _silenceAfter = TotalScrollBar.Maximum - TotalScrollBar.Value;
+            AudioFileChanged();
+            WaveFormPanel_Paint(null, null);
+        }
+
+        private void JobTimer_Tick(object sender, EventArgs e)
+        {
+            if (!IsPlaying)
+                return;
+
+            var elapsed = (int)(DateTime.Now - _startTime).TotalSeconds + _startAt;
+            SetCurrentTime(elapsed);
+            if (elapsed > _silenceBefore && elapsed < _silenceBefore + AudioTime)
+            {
+                if (_waveOut != null && _waveOut.PlaybackState != PlaybackState.Playing)
+                    _waveOut.Play();
+            }
+            else
+            {
+                if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
+                    _waveOut.Stop();
+            }
+        }
+
+        private void SetCurrentTime(int currentTime)
+        {
+            if (_audioFileReader == null)
+                return;
+
+            _currentTime = currentTime;
+            if (currentTime < 0)
+            {
+                CurrentSilenceBeforeLabel.Text = ToStr(TimeSpan.Zero);
+                CurrentAudioLabel.Text = ToStr(TimeSpan.Zero);
+                CurrentSilenceAfterLabel.Text = ToStr(TimeSpan.Zero);
+            }
+            else if (currentTime < _silenceBefore)
+            {
+                CurrentSilenceBeforeLabel.Text = ToStr(TimeSpan.FromSeconds(_currentTime));
+                CurrentAudioLabel.Text = ToStr(TimeSpan.Zero);
+                CurrentSilenceAfterLabel.Text = ToStr(TimeSpan.Zero);
+            }
+            else if (currentTime < _silenceBefore + AudioTime)
+            {
+                CurrentSilenceBeforeLabel.Text = ToStr(TimeSpan.FromSeconds(_silenceBefore));
+                CurrentAudioLabel.Text = ToStr(TimeSpan.FromSeconds(CurrentAudioTime));
+                CurrentSilenceAfterLabel.Text = ToStr(TimeSpan.Zero);
+            }
+            else if (currentTime < _silenceBefore + AudioTime + _silenceAfter)
+            {
+                CurrentSilenceBeforeLabel.Text = ToStr(TimeSpan.FromSeconds(_silenceBefore));
+                CurrentAudioLabel.Text = ToStr(TimeSpan.FromSeconds(AudioTime));
+                CurrentSilenceAfterLabel.Text = ToStr(TimeSpan.FromSeconds(_currentTime - AudioTime - _silenceBefore));
+            }
+            else
+            {
+                CurrentSilenceBeforeLabel.Text = ToStr(TimeSpan.FromSeconds(_silenceBefore));
+                CurrentAudioLabel.Text = ToStr(TimeSpan.FromSeconds(AudioTime));
+                CurrentSilenceAfterLabel.Text = ToStr(TimeSpan.FromSeconds(_silenceAfter));
+            }
+
+            WaveFormPanel_Paint(null, null);
         }
     }
 }

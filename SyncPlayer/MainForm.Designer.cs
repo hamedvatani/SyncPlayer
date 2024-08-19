@@ -29,30 +29,13 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            this.AudioPanel = new System.Windows.Forms.Panel();
-            this.ArrowPanel = new System.Windows.Forms.Panel();
             this.AlignToBeginButton = new System.Windows.Forms.Button();
             this.AlignToEndButton = new System.Windows.Forms.Button();
             this.PlayBackTimer = new System.Windows.Forms.Timer(this.components);
             this.TotalScrollBar = new SyncPlayer.MyScrollBar();
+            this.AudioPanel = new System.Windows.Forms.Panel();
+            this.ArrowPanel = new System.Windows.Forms.Panel();
             this.SuspendLayout();
-            // 
-            // AudioPanel
-            // 
-            this.AudioPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.AudioPanel.Location = new System.Drawing.Point(9, 10);
-            this.AudioPanel.Margin = new System.Windows.Forms.Padding(0);
-            this.AudioPanel.Name = "AudioPanel";
-            this.AudioPanel.Size = new System.Drawing.Size(561, 102);
-            this.AudioPanel.TabIndex = 1;
-            // 
-            // ArrowPanel
-            // 
-            this.ArrowPanel.Location = new System.Drawing.Point(9, 112);
-            this.ArrowPanel.Margin = new System.Windows.Forms.Padding(0);
-            this.ArrowPanel.Name = "ArrowPanel";
-            this.ArrowPanel.Size = new System.Drawing.Size(15, 16);
-            this.ArrowPanel.TabIndex = 5;
             // 
             // AlignToBeginButton
             // 
@@ -88,6 +71,23 @@
             this.TotalScrollBar.ValueChanged += new System.EventHandler(this.TotalScrollBar_ValueChanged);
             this.TotalScrollBar.MouseCaptureChanged += new System.EventHandler(this.TotalScrollBar_MouseCaptureChanged);
             // 
+            // AudioPanel
+            // 
+            this.AudioPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.AudioPanel.Location = new System.Drawing.Point(9, 10);
+            this.AudioPanel.Margin = new System.Windows.Forms.Padding(0);
+            this.AudioPanel.Name = "AudioPanel";
+            this.AudioPanel.Size = new System.Drawing.Size(561, 102);
+            this.AudioPanel.TabIndex = 1;
+            // 
+            // ArrowPanel
+            // 
+            this.ArrowPanel.Location = new System.Drawing.Point(9, 112);
+            this.ArrowPanel.Margin = new System.Windows.Forms.Padding(0);
+            this.ArrowPanel.Name = "ArrowPanel";
+            this.ArrowPanel.Size = new System.Drawing.Size(15, 16);
+            this.ArrowPanel.TabIndex = 5;
+            // 
             // MainForm
             // 
             this.AllowDrop = true;
@@ -113,11 +113,11 @@
         }
 
         #endregion
-        private System.Windows.Forms.Panel AudioPanel;
-        private System.Windows.Forms.Panel ArrowPanel;
         private System.Windows.Forms.Button AlignToBeginButton;
         private System.Windows.Forms.Button AlignToEndButton;
         private MyScrollBar TotalScrollBar;
         private System.Windows.Forms.Timer PlayBackTimer;
+        private System.Windows.Forms.Panel AudioPanel;
+        private System.Windows.Forms.Panel ArrowPanel;
     }
 }
