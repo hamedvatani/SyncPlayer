@@ -1,13 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using NAudio.Wave;
 
 namespace SyncPlayer
 {
@@ -26,6 +18,9 @@ namespace SyncPlayer
 
         public void AddFiles(params string[] filenames)
         {
+            if (filenames.Length == 0)
+                return;
+
             var count = 0;
             AudioVisualPlayer lastPlayer = null;
             foreach (var control in Controls)
@@ -96,8 +91,11 @@ namespace SyncPlayer
 
         private void Player_SilenceScroll(object sender, EventArgs e)
         {
+            var flag = _isPlaying;
+
             Stop();
-            PlayAt(0);
+            if (flag)
+                PlayAt(0);
         }
 
         private void Player_EndOfPlay(object sender, EventArgs e)
@@ -140,11 +138,14 @@ namespace SyncPlayer
 
         private void TotalScrollBar_Scroll(object sender, ScrollEventArgs e)
         {
+            var flag = _isPlaying;
+
             if (e.Type == ScrollEventType.EndScroll)
             {
                 _scrollChanging = false;
                 Stop();
-                PlayAt(TotalScrollBar.Value);
+                if (flag)
+                    PlayAt(TotalScrollBar.Value);
             }
             else
                 foreach (var control in Controls)
@@ -154,6 +155,8 @@ namespace SyncPlayer
 
         private void AlignToBeginButton_Click(object sender, EventArgs e)
         {
+            var flag = _isPlaying;
+
             Stop();
             foreach (var control in Controls)
                 if (control is AudioVisualPlayer player)
@@ -161,11 +164,14 @@ namespace SyncPlayer
                     player.SilenceBefore = 0;
                     player.SilenceAfter = _totalLength - player.AudioTime;
                 }
-            PlayAt(0);
+
+            if (flag)
+                PlayAt(0);
         }
 
         private void AlignToEndButton_Click(object sender, EventArgs e)
         {
+            var flag = _isPlaying;
             Stop();
             foreach (var control in Controls)
                 if (control is AudioVisualPlayer player)
@@ -173,7 +179,9 @@ namespace SyncPlayer
                     player.SilenceBefore = _totalLength - player.AudioTime;
                     player.SilenceAfter = 0;
                 }
-            PlayAt(0);
+
+            if (flag)
+                PlayAt(0);
         }
     }
 }
