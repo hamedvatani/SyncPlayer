@@ -9,6 +9,9 @@ namespace SyncPlayer
 {
     public partial class AudioVisualPlayer : UserControl
     {
+        public event EventHandler SilenceScroll;
+        public event EventHandler EndOfPlay;
+
         [Category("WaveFormPanel")]
         public bool ShowTopLine
         {
@@ -104,8 +107,8 @@ namespace SyncPlayer
 
         public int AudioTime => (int)(_audioFileReader?.TotalTime.TotalSeconds ?? 0);
         public int CurrentAudioTime => (int)(_audioFileReader?.CurrentTime.TotalSeconds ?? 0);
-        public bool IsPlaying => _isPlaying;
-
+        public bool IsPlaying => _waveOut.PlaybackState == PlaybackState.Playing;
+        
         private bool _showTopLine;
         private bool _showBottomLine;
         private int _waveFormMargin;
@@ -113,14 +116,15 @@ namespace SyncPlayer
         private int _silenceBefore;
         private int _silenceAfter;
         private AudioFileReader _audioFileReader;
-        private int _currentTime;
         private int _startAt;
         private DateTime _startTime;
         private bool _isPlaying;
         private readonly WaveOut _waveOut = new WaveOut();
+
         public AudioVisualPlayer()
         {
             InitializeComponent();
+            _waveOut.PlaybackStopped += WaveOut_PlaybackStopped;
         }
 
         public void PlayAt(int seconds)
@@ -142,6 +146,27 @@ namespace SyncPlayer
             _isPlaying = false;
             if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
                 _waveOut.Stop();
+        }
+
+        public void ShowIndicator(int time)
+        {
+            WaveFormPanel_Paint(null, null);
+            DrawIndicator(time);
+        }
+
+        private void WaveOut_PlaybackStopped(object sender, StoppedEventArgs e)
+        {
+            OnEndOfPlay();
+        }
+
+        protected virtual void OnSilenceScroll(ScrollEventArgs e)
+        {
+            SilenceScroll?.Invoke(this, e);
+        }
+
+        protected virtual void OnEndOfPlay()
+        {
+            EndOfPlay?.Invoke(this, EventArgs.Empty);
         }
 
         private void AudioVisualPlayer_Load(object sender, EventArgs e)
@@ -237,8 +262,22 @@ namespace SyncPlayer
             g.DrawLine(new Pen(Color.Black),
                 x2, Height / 2,
                 WaveFormPanel.Width, Height / 2);
+        }
 
-            var x = (int)(_currentTime * ratio);
+        private void DrawIndicator(int time)
+        {
+            var totalTime = _silenceBefore + AudioTime + _silenceAfter;
+            if (_silenceBefore < 0 ||
+                AudioTime <= 0 ||
+                _silenceAfter < 0 ||
+                totalTime <= 0)
+                return;
+
+            double ratio = WaveFormPanel.Width;
+            ratio /= totalTime;
+
+            var x = (int)(time * ratio);
+            var g = WaveFormPanel.CreateGraphics();
             g.FillRectangle(new SolidBrush(Color.OrangeRed),
                 x, 0,
                 2, Height);
@@ -273,11 +312,12 @@ namespace SyncPlayer
             _silenceAfter = TotalScrollBar.Maximum - TotalScrollBar.Value;
             AudioFileChanged();
             WaveFormPanel_Paint(null, null);
+            OnSilenceScroll(e);
         }
 
         private void JobTimer_Tick(object sender, EventArgs e)
         {
-            if (!IsPlaying)
+            if (!_isPlaying)
                 return;
 
             var elapsed = (int)(DateTime.Now - _startTime).TotalSeconds + _startAt;
@@ -299,7 +339,6 @@ namespace SyncPlayer
             if (_audioFileReader == null)
                 return;
 
-            _currentTime = currentTime;
             if (currentTime < 0)
             {
                 CurrentSilenceBeforeLabel.Text = ToStr(TimeSpan.Zero);
@@ -308,7 +347,7 @@ namespace SyncPlayer
             }
             else if (currentTime < _silenceBefore)
             {
-                CurrentSilenceBeforeLabel.Text = ToStr(TimeSpan.FromSeconds(_currentTime));
+                CurrentSilenceBeforeLabel.Text = ToStr(TimeSpan.FromSeconds(currentTime));
                 CurrentAudioLabel.Text = ToStr(TimeSpan.Zero);
                 CurrentSilenceAfterLabel.Text = ToStr(TimeSpan.Zero);
             }
@@ -322,7 +361,7 @@ namespace SyncPlayer
             {
                 CurrentSilenceBeforeLabel.Text = ToStr(TimeSpan.FromSeconds(_silenceBefore));
                 CurrentAudioLabel.Text = ToStr(TimeSpan.FromSeconds(AudioTime));
-                CurrentSilenceAfterLabel.Text = ToStr(TimeSpan.FromSeconds(_currentTime - AudioTime - _silenceBefore));
+                CurrentSilenceAfterLabel.Text = ToStr(TimeSpan.FromSeconds(currentTime - AudioTime - _silenceBefore));
             }
             else
             {
@@ -330,8 +369,6 @@ namespace SyncPlayer
                 CurrentAudioLabel.Text = ToStr(TimeSpan.FromSeconds(AudioTime));
                 CurrentSilenceAfterLabel.Text = ToStr(TimeSpan.FromSeconds(_silenceAfter));
             }
-
-            WaveFormPanel_Paint(null, null);
         }
     }
 }
